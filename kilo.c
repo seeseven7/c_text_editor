@@ -17,7 +17,9 @@ void enableRawMode() {
     atexit(diasableRawMode); // call disableRawMode auto when exiting
 
     struct termios raw = orig_termios; // make a copy
-    raw.c_lflag &= ~(ECHO | ICANON); // ICANON -> flag, now read byte by byte
+    raw.c_lflag &= ~(ECHO | ICANON); 
+    // ICANON -> flag, now read byte by byte
+    // ISIG -> stop signal for ctrlc and ctrlz
 
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw); // set attr, 
     // TSCAFLUSH: waits for all pending output to be written
@@ -27,10 +29,10 @@ int main() {
     enableRawMode();
 
     char c;
-    // print each characters ascii val as well as the char it represents
+    // print each characters ascii val + the char
     while (read(STDIN_FILENO, &c, 1) == 1 && c != 'q') {
         if (iscntrl(c)) {
-            printf("%d\n", c);
+            printf("%d\n", c); // d formats byte as decimal
         } else {
             printf("%d ('%c')\n", c, c);
         }
