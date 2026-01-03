@@ -17,7 +17,7 @@ void enableRawMode() {
     atexit(diasableRawMode); // call disableRawMode auto when exiting
 
     struct termios raw = orig_termios; // make a copy
-    raw.c_lflag &= ~(ECHO | ICANON); 
+    raw.c_lflag &= ~(ECHO | ICANON | ISIG);
     // ICANON -> flag, now read byte by byte
     // ISIG -> stop signal for ctrlc and ctrlz
 
