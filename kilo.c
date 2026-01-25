@@ -17,8 +17,12 @@ void enableRawMode() {
     atexit(diasableRawMode); // call disableRawMode auto when exiting
 
     struct termios raw = orig_termios; // make a copy
-    raw.c_lflag &= ~(ECHO | ICANON | ISIG);
-    // ICANON -> flag, now read byte by byte
+    raw.c_iflag &= ~(ICRNL | IXON);
+    // ICRNL -> input flag for carriage return (no more translation)
+    // IXON -> input flag for xoff and xon (ctrl-s/q)
+    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+    // ICANON -> flag, now read byte by byte (ctrl-c/z)
+    // IEXTEN -> ctrl-v and ctrl-o (macos)
     // ISIG -> stop signal for ctrlc and ctrlz
 
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw); // set attr, 
