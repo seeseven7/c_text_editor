@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <termios.h>
@@ -7,25 +8,32 @@
 // original terminal attributes
 struct termios orig_termios; 
 
+// error handling; prints an error message and exits
+void die(const char *s) {
+    perror(s);
+    exit(1);
+}
+
 // set terminal attrbutes back to original
 void diasableRawMode() {
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1);
+        die("tcsetattr");
 }
 
 void enableRawMode() {
-    tcgetattr(STDIN_FILENO, &orig_termios);
-    atexit(diasableRawMode); // call disableRawMode auto when exiting
+    if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) die ("tcgetattr");
+    atexit(diasableRawMode);
 
-    struct termios raw = orig_termios; // make a copy
-    raw.c_iflag &= ~(ICRNL | IXON);
-    // ICRNL -> input flag for carriage return (no more translation)
-    // IXON -> input flag for xoff and xon (ctrl-s/q)
+    struct termios raw = orig_termios;
+    // set flags
+    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+    raw.c_oflag &= ~(OPOST);
+    raw.c_cflag |= (CS8);
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-    // ICANON -> flag, now read byte by byte (ctrl-c/z)
-    // IEXTEN -> ctrl-v and ctrl-o (macos)
-    // ISIG -> stop signal for ctrlc and ctrlz
+    raw.c_cc[VMIN] = 0;
+    raw.c_cc[VTIME] = 1;
 
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw); // set attr, 
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die("tcsetattr"); 
     // TSCAFLUSH: waits for all pending output to be written
 }
 
@@ -33,13 +41,15 @@ int main() {
     enableRawMode();
 
     char c;
-    // print each characters ascii val + the char
-    while (read(STDIN_FILENO, &c, 1) == 1 && c != 'q') {
+    while (1) {
+        char c = '\0';
+        if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN) die("read");
         if (iscntrl(c)) {
-            printf("%d\n", c); // d formats byte as decimal
+            printf("%d\r\n", c);
         } else {
-            printf("%d ('%c')\n", c, c);
+            printf("%d ('%c')\r\n", c, c);
         }
+        if (c == 'q') break;
     } 
     
     return 0;
