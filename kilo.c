@@ -1,3 +1,5 @@
+/* includes */
+
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
@@ -5,16 +7,24 @@
 #include <termios.h>
 #include <unistd.h>
 
-// original terminal attributes
+/* defines */
+
+#define CTRL_KEY(k) ((k) & 0x1f)
+
+/* data */
+
 struct termios orig_termios; 
 
-// error handling; prints an error message and exits
+/* terminal */
+
 void die(const char *s) {
+    write(STDOUT_FILENO, "\x1b[2J", 4);
+    write(STDOUT_FILENO, "\x1b[H", 3);
+    
     perror(s);
     exit(1);
 }
 
-// set terminal attrbutes back to original
 void diasableRawMode() {
     if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1);
         die("tcsetattr");
@@ -37,19 +47,45 @@ void enableRawMode() {
     // TSCAFLUSH: waits for all pending output to be written
 }
 
+char editorReadKey() {
+    int nread;
+    char c;
+    while ((nread = read(STDIN_FILENO, &c, 1)) != 1) {
+        if (nread == -1 && errno != EAGAIN) die("read");
+    }
+    return c;
+}
+
+/* output */
+
+void editorRefreshScreen() {
+    write(STDOUT_FILENO, "\x1b[2J", 4); // clear screen
+    write(STDOUT_FILENO, "\x1b[H", 3); // repos cursor
+}
+
+/* input */
+
+void editroProcessKeypress() {
+    char c = editorReadKey();
+
+    switch(c) {
+        case CTRL_KEY('q'):
+        write(STDOUT_FILENO, "\x1b[2J", 4);
+        write(STDOUT_FILENO, "\x1b[H", 3);
+        exit(0);
+        break;
+    }
+}
+
+/* init */
+
 int main() {
     enableRawMode();
 
     char c;
     while (1) {
-        char c = '\0';
-        if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN) die("read");
-        if (iscntrl(c)) {
-            printf("%d\r\n", c);
-        } else {
-            printf("%d ('%c')\r\n", c, c);
-        }
-        if (c == 'q') break;
+        editorRefreshScreen();
+        editroProcessKeypress();
     } 
     
     return 0;
